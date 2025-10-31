@@ -1,64 +1,100 @@
-// Skyloong GK104 Pro RGB — SignalRGB custom plugin (base)
-// Vendor: 0x1EA7, Product: 0x0907
+// ======================================================
+//  Skyloong GK104 Pro RGB — Custom SignalRGB Plugin
+//  Autor: Felipe Kaique (custom build)
+//  VendorID: 0x1EA7 | ProductID: 0x0907
+// ======================================================
 
-export function Name()            { return "Skyloong GK104 Pro RGB"; }
-export function VendorId()        { return 0x1EA7; }
-export function ProductId()       { return 0x0907; }
-export function Publisher()       { return "Felipe (custom)"; }
-export function Size()            { return [22, 7]; }     // grade lógica (colunas x linhas)
+// ----------- Identificação e metadados -----------
+
+export function Name() { return "Skyloong GK104 Pro RGB"; }
+export function VendorId() { return 0x1EA7; }
+export function ProductId() { return 0x0907; }
+export function Publisher() { return "Felipe Kaique"; }
+export function DeviceType() { return "keyboard"; }
+export function Size() { return [22, 7]; }          // grade lógica (colunas x linhas)
 export function DefaultPosition() { return [0, 0]; }
-export function DefaultScale()    { return 12.0; }        // zoom padrão no canvas
+export function DefaultScale() { return 12.0; }
 
-// Painel de opções no SignalRGB (pode expandir depois)
+// ----------- Parâmetros no painel do SignalRGB -----------
+
 export function ControlTableParameters() {
   return [
-    { "property":"shutdownColor", "group":"Lighting", "Label":"Shutdown Color", "type":"color", "default":"#009bde" },
-    { "property":"mode",          "group":"Lighting", "Label":"Lighting Mode", "type":"combobox",
-      "values":["Static","Breathing","Wave"], "default":"Static" },
-    { "property":"forcedColor",   "group":"Lighting", "Label":"Forced Color", "type":"color", "default":"#009bde" }
+    {
+      "property": "shutdownColor",
+      "group": "Lighting",
+      "Label": "Shutdown Color",
+      "type": "color",
+      "default": "#009bde"
+    },
+    {
+      "property": "mode",
+      "group": "Lighting",
+      "Label": "Lighting Mode",
+      "type": "combobox",
+      "values": ["Static", "Breathing", "Wave"],
+      "default": "Static"
+    },
+    {
+      "property": "forcedColor",
+      "group": "Lighting",
+      "Label": "Forced Color",
+      "type": "color",
+      "default": "#009bde"
+    }
   ];
 }
 
-/**
- * vKeys: índices lógicos dos LEDs/teclas (0..N)
- * vKeyPositions: posições na grade [col, row] para desenho no canvas do SignalRGB
- *
- * OBS:
- * - Este mapeamento segue um ANSI 104 clássico com numpad.
- * - Se alguma tecla acender fora do lugar, a gente só rearranja a ordem aqui.
- */
+// ======================================================
+//   Funções obrigatórias para inicialização do HID
+// ======================================================
 
-// Linha de funções (ESC F1..F12 PrtSc/ScrLk/Pause)
+export function validate(device) {
+  // Confirma que o dispositivo conectado é o GK104 Pro
+  return device.vendorId === 0x1EA7 && device.productId === 0x0907;
+}
+
+export function initialize(device) {
+  // Inicialização básica: placeholder
+  device.setFeatureReport = () => {};
+  console.log("GK104 Pro inicializado (placeholder HID).");
+  return true;
+}
+
+// ======================================================
+//   Layout de teclas (ANSI 104) — LEDs e posições
+// ======================================================
+
+// Linha de funções (ESC, F1..F12, Print, Scroll, Pause)
 const row0 = [
   "Esc","F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12","PrtSc","ScrLk","Pause"
 ];
 
-// Linha numérica + Insert/Home/PageUp
+// Linha numérica
 const row1 = [
   "`","1","2","3","4","5","6","7","8","9","0","-","=","Backspace","Ins","Home","PgUp"
 ];
 
-// Tab + Q..] + \ + Del/End/PgDn
+// Linha QWERTY
 const row2 = [
   "Tab","Q","W","E","R","T","Y","U","I","O","P","[","]","\\","Del","End","PgDn"
 ];
 
-// Caps + A..' + Enter
+// Linha ASDF
 const row3 = [
   "Caps","A","S","D","F","G","H","J","K","L",";","'","Enter"
 ];
 
-// LShift + Z../ + RShift + Setas cima
+// Linha ZXCV
 const row4 = [
   "LShift","Z","X","C","V","B","N","M",",",".","/","RShift","Up"
 ];
 
-// LCtrl/Win/LAlt/Space/RAlt/Menu/RCtrl + Setas esq/baixo/dir
+// Linha espaço e controladores
 const row5 = [
   "LCtrl","LWin","LAlt","Space","Space2","RAlt","Menu","RCtrl","Left","Down","Right"
 ];
 
-// Numpad (coluna separada)
+// Numpad
 const np = [
   "NumLock","Np/","Np*","Np-",
   "Np7","Np8","Np9","Np+",
@@ -67,29 +103,30 @@ const np = [
   "Np0","Np."
 ];
 
-// Constrói o array de chaves em ordem (sequência = ordem de envio/canvas)
+// Junta todos os nomes
 const keyNames = [
   ...row0, ...row1, ...row2, ...row3, ...row4, ...row5, ...np
 ];
 
-// Índices lógicos para todas as teclas
+// Índices lógicos
 export const vKeys = keyNames.map((_, i) => i);
 
-// Grade: 22 colunas x 7 linhas (aprox. espaçamento de 1 unidade; teclas largas ocupam mesma célula visual)
+// Função que posiciona as teclas numa grade lógica
 function placeRow(names, row, startCol) {
   const positions = [];
   let c = startCol;
   for (const n of names) {
     positions.push([c, row]);
-    // avança com heurística simples; teclas largas pulam 2
+    // Espaçamentos especiais para teclas largas
     if (["Backspace","Enter","RShift"].includes(n)) c += 2;
-    else if (["Tab","Caps","LShift"].includes(n))   c += 1.5;
-    else if (["Space","Space2"].includes(n))        c += 3.5;
-    else                                            c += 1;
+    else if (["Tab","Caps","LShift"].includes(n)) c += 1.5;
+    else if (["Space","Space2"].includes(n)) c += 3.5;
+    else c += 1;
   }
   return positions;
 }
 
+// Monta linhas principais
 const p0 = placeRow(row0, 0, 0);
 const p1 = placeRow(row1, 1, 0);
 const p2 = placeRow(row2, 2, 0);
@@ -97,7 +134,7 @@ const p3 = placeRow(row3, 3, 0);
 const p4 = placeRow(row4, 4, 0);
 const p5 = placeRow(row5, 5, 0);
 
-// Numpad alinhado à direita (começa na coluna 17)
+// Numpad alinhado à direita (coluna base = 17)
 function placeNumpad(baseCol) {
   return [
     [baseCol+0,1],[baseCol+1,1],[baseCol+2,1],[baseCol+3,1],
@@ -109,39 +146,17 @@ function placeNumpad(baseCol) {
 }
 const pNP = placeNumpad(17);
 
-// Posições finais na mesma ordem dos nomes
+// Exporta posições finais
 export const vKeyPositions = [
   ...p0, ...p1, ...p2, ...p3, ...p4, ...p5, ...pNP
 ];
 
-// Opcional: dica de nomes (usado por alguns temas)
+// Função obrigatória — retorna nomes das teclas
 export function LedNames() { return keyNames; }
 
-// ----------- Notas -----------
-// 1) Este plugin usa o pipeline HID padrão do SignalRGB para teclados genéricos.
-// 2) Se algumas teclas parecerem “trocadas”, ajuste apenas a ordem de keyNames
-//    (reordene itens ou acrescente/remova onde precisar) e mantenha vKeys = index.
-// 3) Se o seu firmware tiver modos proprietários, depois dá para expor via ControlTableParameters.
-// ------------------------------
-
+// Log opcional para debug
+console.log("Loaded GK104 layout:", keyNames.length, "keys, positions:", vKeyPositions.length);
 
 // ======================================================
-// Funções obrigatórias para inicialização HID
+// Fim do plugin
 // ======================================================
-
-// Verifica se o dispositivo conectado é realmente o GK104 Pro
-export function validate(device) {
-  // Confere IDs USB
-  if (device.vendorId === 0x1EA7 && device.productId === 0x0907) {
-    return true;
-  }
-  return false;
-}
-
-// Inicializa o HID (chamado quando o SignalRGB conecta)
-export function initialize(device) {
-  // Aqui futuramente podemos adicionar pacotes HID reais,
-  // mas por enquanto basta retornar "true" para o SignalRGB aceitar.
-  device.setFeatureReport = () => {}; // placeholder vazio
-  return true;
-}
