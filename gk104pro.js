@@ -1,5 +1,5 @@
 // ======================================================
-//  Skyloong GK104 Pro RGB — SignalRGB Plugin (v1.5)
+//  Skyloong GK104 Pro RGB — SignalRGB Plugin (v1.6)
 //  VendorID: 0x1EA7 | ProductID: 0x0907
 //  Author: Felipe Kaique
 // ======================================================
@@ -13,6 +13,9 @@ export function Size() { return [22, 7]; }
 export function DefaultPosition() { return [0, 0]; }
 export function DefaultScale() { return 12.0; }
 
+// ======================================================
+//  Control Panel Parameters
+// ======================================================
 export function ControlTableParameters() {
   return [
     {
@@ -36,23 +39,12 @@ export function ControlTableParameters() {
 // ======================================================
 //  HID Interface
 // ======================================================
-
 let globalEndpoint = null;
 
 export function Validate(endpoint) {
   if (!endpoint) return false;
-
-  console.log(
-    `🔍 Endpoint detectado: interface=${endpoint.interface}, usage=0x${endpoint.usage.toString(
-      16
-    )}, usage_page=0x${endpoint.usage_page.toString(16)}`
-  );
-
-  if (
-    endpoint.interface === 2 &&
-    endpoint.usage === 0x80 &&
-    endpoint.usage_page === 0x0001
-  ) {
+  console.log(`🔍 Endpoint detectado: interface=${endpoint.interface}, usage=0x${endpoint.usage.toString(16)}, usage_page=0x${endpoint.usage_page.toString(16)}`);
+  if (endpoint.interface === 2 && endpoint.usage === 0x80 && endpoint.usage_page === 0x0001) {
     console.log("✅ GK104 Pro RGB endpoint de LEDs detectado:", endpoint.interface);
     globalEndpoint = endpoint;
     return true;
@@ -66,18 +58,13 @@ export function Initialize(endpoint) {
     console.warn("⚠️ Initialize() chamado sem endpoint válido!");
     return false;
   }
-
   console.log(`🚀 Inicializando GK104 Pro RGB (interface ${endpoint.interface})`);
-
-  endpoint.write = (data) => {
-    console.log("💡 HID write (mock):", data);
-  };
-
+  globalEndpoint = endpoint;
   return true;
 }
 
 // ======================================================
-//  Layout ANSI 104 (LEDs e posições visuais)
+//  Layout ANSI 104 (LEDs e posições)
 // ======================================================
 
 function placeRow(names, row, startCol) {
@@ -118,7 +105,6 @@ let vKeyPositions = [
   ...placeRow(layout.row5, 5, 0),
 ];
 
-// Numpad (coluna lateral)
 const npBase = 17;
 layout.np.forEach((_, i) => {
   const x = npBase + (i % 4);
@@ -126,12 +112,7 @@ layout.np.forEach((_, i) => {
   vKeyPositions.push([x, y]);
 });
 
-// ======================================================
-//  Correção de exportação e fallback
-// ======================================================
-
 if (!vKeyPositions || vKeyPositions.length === 0) {
-  console.warn("⚠️ Nenhuma posição detectada — criando grade 22x7 padrão.");
   vKeyPositions = [];
   for (let y = 0; y < 7; y++) {
     for (let x = 0; x < 22; x++) {
@@ -139,17 +120,36 @@ if (!vKeyPositions || vKeyPositions.length === 0) {
     }
   }
 }
-
 if (vKeyPositions.length !== keyNames.length) {
-  console.warn(`⚠️ Corrigindo discrepância: Names=${keyNames.length}, Positions=${vKeyPositions.length}`);
   const diff = keyNames.length - vKeyPositions.length;
-  for (let i = 0; i < diff; i++) {
-    vKeyPositions.push([i % 22, Math.floor(i / 22)]);
-  }
+  for (let i = 0; i < diff; i++) vKeyPositions.push([i % 22, Math.floor(i / 22)]);
 }
 
-// ✅ O SignalRGB espera funções, não constantes
 export function LedNames() { return keyNames; }
 export function LedPositions() { return vKeyPositions; }
 
+// ======================================================
+//  Envio de Cores (Render Loop)
+// ======================================================
+
+export function Render(frame) {
+  if (!globalEndpoint) return;
+
+  const buffer = [];
+  for (let i = 0; i < frame.length; i++) {
+    const led = frame[i];
+    buffer.push(led.r, led.g, led.b);
+  }
+
+  try {
+    const packet = new Uint8Array([0x00, 0x01, ...buffer]);
+    globalEndpoint.write(packet);
+  } catch (err) {
+    console.warn("❌ Erro ao enviar pacote HID:", err);
+  }
+}
+
+// ======================================================
+//  Log final
+// ======================================================
 console.log(`🧩 GK104 Pro RGB plugin carregado: ${keyNames.length} LEDs, ${vKeyPositions.length} posições.`);
