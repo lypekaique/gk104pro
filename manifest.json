@@ -1,0 +1,9 @@
+{
+  "name": "Skyloong GK104 Pro Debug",
+  "author": "Felipe Kaique",
+  "description": "Plugin de depuração para detectar e validar o endpoint HID do Skyloong GK104 Pro.",
+  "version": "0.1",
+  "devices": [
+    "debug.js"
+  ]
+}
