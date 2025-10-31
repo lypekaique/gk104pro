@@ -1,5 +1,5 @@
 // ======================================================
-//  Skyloong GK104 Pro RGB — SignalRGB Plugin (v1.6)
+//  Skyloong GK104 Pro RGB — SignalRGB Plugin (v1.7)
 //  VendorID: 0x1EA7 | ProductID: 0x0907
 //  Author: Felipe Kaique
 // ======================================================
@@ -13,9 +13,6 @@ export function Size() { return [22, 7]; }
 export function DefaultPosition() { return [0, 0]; }
 export function DefaultScale() { return 12.0; }
 
-// ======================================================
-//  Control Panel Parameters
-// ======================================================
 export function ControlTableParameters() {
   return [
     {
@@ -64,7 +61,7 @@ export function Initialize(endpoint) {
 }
 
 // ======================================================
-//  Layout ANSI 104 (LEDs e posições)
+//  Layout ANSI 104
 // ======================================================
 
 function placeRow(names, row, startCol) {
@@ -94,7 +91,6 @@ const keyNames = [
   ...layout.row0, ...layout.row1, ...layout.row2,
   ...layout.row3, ...layout.row4, ...layout.row5, ...layout.np
 ];
-export const vKeys = keyNames.map((_, i) => i);
 
 let vKeyPositions = [
   ...placeRow(layout.row0, 0, 0),
@@ -112,36 +108,35 @@ layout.np.forEach((_, i) => {
   vKeyPositions.push([x, y]);
 });
 
-if (!vKeyPositions || vKeyPositions.length === 0) {
-  vKeyPositions = [];
-  for (let y = 0; y < 7; y++) {
-    for (let x = 0; x < 22; x++) {
-      vKeyPositions.push([x, y]);
-    }
-  }
-}
 if (vKeyPositions.length !== keyNames.length) {
+  console.warn(`⚠️ Corrigindo discrepância: Names=${keyNames.length}, Positions=${vKeyPositions.length}`);
   const diff = keyNames.length - vKeyPositions.length;
-  for (let i = 0; i < diff; i++) vKeyPositions.push([i % 22, Math.floor(i / 22)]);
+  for (let i = 0; i < diff; i++) {
+    vKeyPositions.push([i % 22, Math.floor(i / 22)]);
+  }
 }
 
 export function LedNames() { return keyNames; }
 export function LedPositions() { return vKeyPositions; }
+export function LedCount() { return keyNames.length; } // 👈 ADICIONADO
 
 // ======================================================
-//  Envio de Cores (Render Loop)
+//  Render - envia as cores pro teclado
 // ======================================================
-
 export function Render(frame) {
   if (!globalEndpoint) return;
-
-  const buffer = [];
-  for (let i = 0; i < frame.length; i++) {
-    const led = frame[i];
-    buffer.push(led.r, led.g, led.b);
+  if (!frame || !frame.length) {
+    console.warn("⚠️ Frame RGB inválido ou vazio no Render()");
+    return;
   }
 
   try {
+    const buffer = [];
+    for (let i = 0; i < frame.length; i++) {
+      const led = frame[i];
+      buffer.push(led.r, led.g, led.b);
+    }
+
     const packet = new Uint8Array([0x00, 0x01, ...buffer]);
     globalEndpoint.write(packet);
   } catch (err) {
@@ -149,7 +144,4 @@ export function Render(frame) {
   }
 }
 
-// ======================================================
-//  Log final
-// ======================================================
 console.log(`🧩 GK104 Pro RGB plugin carregado: ${keyNames.length} LEDs, ${vKeyPositions.length} posições.`);
