@@ -57,6 +57,10 @@ export function Validate(endpoint) {
  * Aqui no futuro podemos adicionar escrita real de pacotes RGB.
  */
 export function Initialize(endpoint) {
+  if (!endpoint || !endpoint.interface) {
+    console.error("❌ GK104 Pro RGB: endpoint inválido ou indefinido");
+    return false;
+  }
   console.log("🚀 GK104 Pro RGB inicializado (interface:", endpoint.interface + ")");
   endpoint.write = (data) => {
     // placeholder: no futuro enviará pacotes RGB reais
@@ -124,8 +128,14 @@ const pNP = placeNumpad(17);
 // Exporta nomes e posições
 export const vKeyPositions = [...p0, ...p1, ...p2, ...p3, ...p4, ...p5, ...pNP];
 export function LedNames() { return keyNames; }
+export function LedPositions() { return vKeyPositions; }
 
-console.log(`🧩 GK104 Pro RGB plugin carregado: ${keyNames.length} LEDs, ${vKeyPositions.length} posições.`);
+// Validação de consistência
+if (keyNames.length !== vKeyPositions.length) {
+  console.error(`❌ ERRO: Inconsistência entre nomes e posições! Nomes: ${keyNames.length}, Posições: ${vKeyPositions.length}`);
+} else {
+  console.log(`🧩 GK104 Pro RGB plugin carregado: ${keyNames.length} LEDs, ${vKeyPositions.length} posições.`);
+}
 
 // ======================================================
 //  Fim do plugin
