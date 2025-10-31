@@ -1,22 +1,19 @@
 // ============================================================
 // Skyloong GK104 Pro (SEMITE) - SignalRGB Addon
 // Autor: Felipe Kaique (lypekaique)
-// Baseado em logs HID extraídos via OpenRGB
+// Compatível com SDK v5 / API v4
 // ============================================================
 
 import { HIDDevice } from "signalrgb-sdk";
 
 export class SkyloongGK104Pro extends HIDDevice {
-  static vendorId = 0x1EA7;       // SEMITE / Skyloong
-  static productId = 0x0907;      // GK104 Pro
+  static vendorId = 0x1EA7;
+  static productId = 0x0907;
   static interface = 1;
-  static usagePage = 0xFF00;      // Página de uso RGB custom
+  static usagePage = 0xFF00;
   static name = "Skyloong GK104 Pro";
   static defaultLedCount = 104;
 
-  // ============================================================
-  // Inicialização do dispositivo
-  // ============================================================
   async Initialize() {
     this.log("🔌 Iniciando comunicação com Skyloong GK104 Pro...");
 
@@ -34,23 +31,20 @@ export class SkyloongGK104Pro extends HIDDevice {
         this.log("❌ Falha ao abrir o HID do GK104 Pro.");
       }
     } catch (err) {
-      this.log("❌ Erro ao inicializar HID:", err);
+      this.log("⚠️ Erro ao inicializar HID:", err);
     }
   }
 
-  // ============================================================
-  // Envia dados RGB — (placeholder até captura real do protocolo)
-  // ============================================================
+  // Envio de dados RGB (placeholder)
   async SendUpdate() {
     if (!this.device) return;
 
-    // Pacote temporário apenas pra testar a comunicação
     const buffer = new Uint8Array(65);
-    buffer[0] = 0x00;    // Report ID
-    buffer[1] = 0x01;    // Comando (a confirmar)
-    buffer[2] = 255;     // R
-    buffer[3] = 0;       // G
-    buffer[4] = 0;       // B
+    buffer[0] = 0x00;
+    buffer[1] = 0x01;
+    buffer[2] = 255; // Vermelho
+    buffer[3] = 0;
+    buffer[4] = 0;
 
     try {
       await this.device.sendFeatureReport(buffer);
@@ -60,9 +54,6 @@ export class SkyloongGK104Pro extends HIDDevice {
     }
   }
 
-  // ============================================================
-  // LED Map e Metadados
-  // ============================================================
   getLedCount() {
     return SkyloongGK104Pro.defaultLedCount;
   }
@@ -71,9 +62,6 @@ export class SkyloongGK104Pro extends HIDDevice {
     return `LED ${index + 1}`;
   }
 
-  // ============================================================
-  // Logging auxiliar
-  // ============================================================
   log(...msg) {
     console.log(`[GK104Pro]`, ...msg);
   }

@@ -1,0 +1,16 @@
+{
+  "name": "Skyloong GK104 Pro",
+  "author": "Felipe Kaique (lypekaique)",
+  "version": "1.0.0",
+  "description": "Plugin experimental de controle RGB para o teclado Skyloong GK104 Pro (SEMITE) usando o protocolo HID.",
+  "devices": [
+    {
+      "type": "hid",
+      "vendor_id": "0x1EA7",
+      "product_id": "0x0907",
+      "interface": 1,
+      "usage_page": "0xFF00",
+      "module": "GK104Pro.js"
+    }
+  ]
+}
