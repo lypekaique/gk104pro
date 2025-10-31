@@ -1,5 +1,5 @@
 // ======================================================
-//  Skyloong GK104 Pro RGB — SignalRGB Plugin (v1.4)
+//  Skyloong GK104 Pro RGB — SignalRGB Plugin (v1.5)
 //  VendorID: 0x1EA7 | ProductID: 0x0907
 //  Author: Felipe Kaique
 // ======================================================
@@ -15,8 +15,21 @@ export function DefaultScale() { return 12.0; }
 
 export function ControlTableParameters() {
   return [
-    { property: "mode", group: "Lighting", Label: "Lighting Mode", type: "combobox", values: ["Static", "Breathing", "Wave"], default: "Static" },
-    { property: "color", group: "Lighting", Label: "Main Color", type: "color", default: "#009bde" }
+    {
+      property: "mode",
+      group: "Lighting",
+      Label: "Lighting Mode",
+      type: "combobox",
+      values: ["Static", "Breathing", "Wave"],
+      default: "Static"
+    },
+    {
+      property: "color",
+      group: "Lighting",
+      Label: "Main Color",
+      type: "color",
+      default: "#009bde"
+    }
   ];
 }
 
@@ -29,9 +42,17 @@ let globalEndpoint = null;
 export function Validate(endpoint) {
   if (!endpoint) return false;
 
-  console.log(`🔍 Endpoint detectado: interface=${endpoint.interface}, usage=0x${endpoint.usage.toString(16)}, usage_page=0x${endpoint.usage_page.toString(16)}`);
+  console.log(
+    `🔍 Endpoint detectado: interface=${endpoint.interface}, usage=0x${endpoint.usage.toString(
+      16
+    )}, usage_page=0x${endpoint.usage_page.toString(16)}`
+  );
 
-  if (endpoint.interface === 2 && endpoint.usage === 0x80 && endpoint.usage_page === 0x0001) {
+  if (
+    endpoint.interface === 2 &&
+    endpoint.usage === 0x80 &&
+    endpoint.usage_page === 0x0001
+  ) {
     console.log("✅ GK104 Pro RGB endpoint de LEDs detectado:", endpoint.interface);
     globalEndpoint = endpoint;
     return true;
@@ -51,11 +72,12 @@ export function Initialize(endpoint) {
   endpoint.write = (data) => {
     console.log("💡 HID write (mock):", data);
   };
+
   return true;
 }
 
 // ======================================================
-//  Layout ANSI 104
+//  Layout ANSI 104 (LEDs e posições visuais)
 // ======================================================
 
 function placeRow(names, row, startCol) {
@@ -104,14 +126,30 @@ layout.np.forEach((_, i) => {
   vKeyPositions.push([x, y]);
 });
 
-// Fallback automático
-if (vKeyPositions.length !== keyNames.length) {
-  console.warn(`⚠️ Corrigindo posições: Names=${keyNames.length}, Positions=${vKeyPositions.length}`);
-  const diff = keyNames.length - vKeyPositions.length;
-  for (let i = 0; i < diff; i++) vKeyPositions.push([i % 22, Math.floor(i / 22)]);
+// ======================================================
+//  Correção de exportação e fallback
+// ======================================================
+
+if (!vKeyPositions || vKeyPositions.length === 0) {
+  console.warn("⚠️ Nenhuma posição detectada — criando grade 22x7 padrão.");
+  vKeyPositions = [];
+  for (let y = 0; y < 7; y++) {
+    for (let x = 0; x < 22; x++) {
+      vKeyPositions.push([x, y]);
+    }
+  }
 }
 
+if (vKeyPositions.length !== keyNames.length) {
+  console.warn(`⚠️ Corrigindo discrepância: Names=${keyNames.length}, Positions=${vKeyPositions.length}`);
+  const diff = keyNames.length - vKeyPositions.length;
+  for (let i = 0; i < diff; i++) {
+    vKeyPositions.push([i % 22, Math.floor(i / 22)]);
+  }
+}
+
+// ✅ O SignalRGB espera funções, não constantes
 export function LedNames() { return keyNames; }
-export { vKeyPositions };
+export function LedPositions() { return vKeyPositions; }
 
 console.log(`🧩 GK104 Pro RGB plugin carregado: ${keyNames.length} LEDs, ${vKeyPositions.length} posições.`);
