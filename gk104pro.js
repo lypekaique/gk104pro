@@ -1,104 +1,99 @@
-// ============================================================
-// Skyloong GK104 Pro (SEMITE) - SignalRGB Addon
-// Autor: Felipe Kaique (lypekaique)
-// SDK v5 / API v4  |  Fallback de metadados estilo antigo
-// ============================================================
+// ======================================================
+//  Skyloong GK104 Pro RGB — Single-file SignalRGB Addon
+//  (sem plugin.json)
+//  VID: 0x1EA7 | PID: 0x0907 | Mfr: "SEMITE"
+//  Autor: Felipe Kaique (lypekaique)
+// ======================================================
 
-import { HIDDevice } from "signalrgb-sdk";
-
-// --------- Metadados (ajudam a UI a desenhar) ----------
-export function Name() { return "Skyloong GK104 Pro RGB"; }
-export function Publisher() { return "Felipe Kaique"; }
-export function DeviceType() { return "keyboard"; }
-export function Size() { return [22, 7]; }
+// -------- Metadados para a UI --------
+export function Name()            { return "Skyloong GK104 Pro RGB"; }
+export function Publisher()       { return "Felipe Kaique"; }
+export function DeviceType()      { return "keyboard"; }
+export function Size()            { return [22, 7]; }
 export function DefaultPosition() { return [0, 0]; }
-export function DefaultScale() { return 12.0; }
+export function DefaultScale()    { return 12.0; }
 
-// Layout simples: 104 LEDs em grade (placeholder)
-function gridPositions(cols = 22, rows = 7) {
-  const pos = [];
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) pos.push([x, y]);
-  }
-  return pos;
+// (Opcional) controles básicos na UI
+export function ControlTableParameters() {
+  return [
+    { property: "mode",  group: "Lighting", Label: "Mode",  type: "combobox",
+      values: ["Static","Breathing","Wave"], default: "Static" },
+    { property: "color", group: "Lighting", Label: "Color", type: "color",
+      default: "#00A0FF" }
+  ];
 }
+
+// --------- Layout simples (placeholder) ---------
 const LED_COUNT = 104;
-const ledNames = Array.from({ length: LED_COUNT }, (_, i) => `LED ${i+1}`);
-const ledPositions = gridPositions().slice(0, LED_COUNT);
+const keyNames = Array.from({ length: LED_COUNT }, (_, i) => `LED ${i+1}`);
+export const vKeys = keyNames.map((_, i) => i);
 
-export function LedNames() { return ledNames; }
-export function LedPositions() { return ledPositions; }
-
-// ----------------- Classe principal (SDK v5) -----------------
-export default class SkyloongGK104Pro extends HIDDevice {
-  static vendorId = 0x1EA7;
-  static productId = 0x0907;
-  static interface = 2;                 // visto nos seus logs
-  static name = "Skyloong GK104 Pro";
-  static defaultLedCount = LED_COUNT;
-
-  log(...m) { console.log("[GK104Pro]", ...m); }
-  getLedCount() { return SkyloongGK104Pro.defaultLedCount; }
-  SupportsLighting() { return true; }
-
-  // Opcional: ajuda a UI a escalar/posicionar
-  Size() { return [22, 7]; }
-  DefaultScale() { return 12.0; }
-
-  async Initialize() {
-    this.log("Inicializando…");
-    try {
-      // Tenta abrir com interface específica primeiro…
-      this.device = await this.OpenDevice({
-        vendorId: SkyloongGK104Pro.vendorId,
-        productId: SkyloongGK104Pro.productId,
-        interface: SkyloongGK104Pro.interface
-      });
-
-      // …se não rolar, tenta sem interface (queda suave)
-      if (!this.device) {
-        this.log("Tentando abrir sem filtrar interface…");
-        this.device = await this.OpenDevice({
-          vendorId: SkyloongGK104Pro.vendorId,
-          productId: SkyloongGK104Pro.productId
-        });
-      }
-
-      if (this.device) this.log("✅ HID aberto!");
-      else this.log("❌ Falha ao abrir o HID.");
-    } catch (err) {
-      this.log("⚠️ Erro ao inicializar HID:", err);
-    }
-  }
-
-  // Envio de quadro (placeholder). Assim que tivermos o
-  // protocolo correto do GK104 Pro, trocamos este método.
-  async SendUpdate() {
-    if (!this.device || !this.frame) return;
-
-    const n = Math.min(this.getLedCount(), this.frame.length);
-    // Header fictício 0xAA 0x55 + count + RGBs
-    const buf = new Uint8Array(3 + n * 3);
-    buf[0] = 0xAA;
-    buf[1] = 0x55;
-    buf[2] = n & 0xff;
-
-    for (let i = 0; i < n; i++) {
-      const c = this.frame[i]; // {r,g,b}
-      const o = 3 + i * 3;
-      buf[o+0] = c.r | 0;
-      buf[o+1] = c.g | 0;
-      buf[o+2] = c.b | 0;
-    }
-
-    try {
-      await this.device.sendFeatureReport(0x00, buf);
-    } catch (e1) {
-      try {
-        await this.device.sendOutputReport(0x00, buf);
-      } catch (e2) {
-        this.log("Erro ao enviar quadro:", e2);
-      }
-    }
-  }
+function gridPositions(cols=22, rows=7) {
+  const out = [];
+  for (let y=0; y<rows; y++) for (let x=0; x<cols; x++) out.push([x,y]);
+  return out;
 }
+let vKeyPositions = gridPositions().slice(0, LED_COUNT);
+
+export function LedNames()     { return keyNames; }
+export function LedPositions() { return vKeyPositions; }
+
+// --------- HID binding (formato antigo) ---------
+let cachedEndpoint = null;
+
+/**
+ * O SignalRGB chama Validate para cada endpoint HID detectado.
+ * Aqui aceitamos por:
+ *   • VID/PID = 0x1EA7/0x0907  (sem exigir interface/usage)
+ *   • OU nomes contendo "semite" ou "usb-hid gaming keyboar"
+ */
+export function Validate(endpoint) {
+  if (!endpoint) return false;
+
+  // Campos variam entre builds — tratamos ambos camel/snake.
+  const vid  = endpoint.vendor_id  ?? endpoint.vendorId  ?? 0;
+  const pid  = endpoint.product_id ?? endpoint.productId ?? 0;
+  const mfr  = (endpoint.manufacturer ?? endpoint.manufacturer_name ?? "").toLowerCase();
+  const prod = (endpoint.product_name ?? endpoint.product ?? "").toLowerCase();
+
+  const idMatch   = (vid === 0x1EA7 && pid === 0x0907);
+  const nameMatch = mfr.includes("semite") || prod.includes("usb-hid gaming keyboar") || prod.includes("gk104");
+
+  const ok = idMatch || nameMatch;
+  if (ok) cachedEndpoint = endpoint;
+
+  // Log útil pra depurar (aparece nos logs do SignalRGB)
+  try {
+    console.log(`[GK104Pro][Validate] vid=0x${vid.toString(16)} pid=0x${pid.toString(16)} ` +
+                `mfr="${mfr}" prod="${prod}" -> ${ok ? "MATCH" : "skip"}`);
+  } catch(e) {}
+
+  return ok;
+}
+
+/**
+ * Chamado quando o addon é inicializado para o endpoint correspondente.
+ * Não enviamos nada ainda (protocolo real vem depois). Apenas guardamos
+ * o endpoint e colocamos um "mock" de write para evitar erros.
+ */
+export function Initialize(endpoint) {
+  if (!endpoint && cachedEndpoint) endpoint = cachedEndpoint;
+  if (!endpoint) {
+    console.warn("[GK104Pro][Init] sem endpoint válido.");
+    return false;
+  }
+
+  cachedEndpoint = endpoint;
+
+  // Nem todos os builds expõem write(); evitamos crash.
+  if (typeof endpoint.write !== "function") {
+    endpoint.write = (data) => console.log("[GK104Pro] HID write (mock):", data);
+  }
+
+  console.log("[GK104Pro] Inicializado com sucesso.");
+  return true;
+}
+
+// (Opcional) Futuro: quando tivermos o protocolo, dá pra
+// implementar um envio real por quadro. Por enquanto,
+// deixar assim garante que o dispositivo APAREÇA na lista.
