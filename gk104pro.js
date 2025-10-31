@@ -1,5 +1,5 @@
 // ======================================================
-//  Skyloong GK104 Pro RGB — SignalRGB Plugin (v1.0)
+//  Skyloong GK104 Pro RGB — SignalRGB Plugin (v1.1)
 //  VendorID: 0x1EA7 | ProductID: 0x0907
 //  Author: Felipe Kaique
 // ======================================================
@@ -44,6 +44,15 @@ export function ControlTableParameters() {
  * Esta função valida qual é o correto (o de LEDs).
  */
 export function Validate(endpoint) {
+  if (!endpoint) {
+    console.warn("⚠️ Validate() chamado sem endpoint!");
+    return false;
+  }
+
+  console.log(
+    `🔍 Verificando endpoint: interface=${endpoint.interface}, usage=0x${endpoint.usage.toString(16)}, usage_page=0x${endpoint.usage_page.toString(16)}`
+  );
+
   // Canal de LEDs é interface 2 / usage 0x80 / usage_page 0x0001
   if (endpoint.interface === 2 && endpoint.usage === 0x80 && endpoint.usage_page === 0x0001) {
     console.log("✅ GK104 Pro RGB endpoint de LEDs detectado:", endpoint.interface);
@@ -57,15 +66,18 @@ export function Validate(endpoint) {
  * Aqui no futuro podemos adicionar escrita real de pacotes RGB.
  */
 export function Initialize(endpoint) {
-  if (!endpoint || !endpoint.interface) {
-    console.error("❌ GK104 Pro RGB: endpoint inválido ou indefinido");
+  if (!endpoint) {
+    console.warn("⚠️ Initialize() chamado sem endpoint válido!");
     return false;
   }
-  console.log("🚀 GK104 Pro RGB inicializado (interface:", endpoint.interface + ")");
+
+  console.log(`🚀 GK104 Pro RGB inicializado (interface ${endpoint.interface})`);
+
+  // placeholder: no futuro enviará pacotes RGB reais
   endpoint.write = (data) => {
-    // placeholder: no futuro enviará pacotes RGB reais
-    console.log("HID write (mock):", data);
+    console.log("💡 HID write (mock):", data);
   };
+
   return true;
 }
 
@@ -125,17 +137,17 @@ function placeNumpad(baseCol) {
 }
 const pNP = placeNumpad(17);
 
-// Exporta nomes e posições
-export const vKeyPositions = [...p0, ...p1, ...p2, ...p3, ...p4, ...p5, ...pNP];
-export function LedNames() { return keyNames; }
-export function LedPositions() { return vKeyPositions; }
+console.log("DEBUG: p0..pNP sizes:", 
+  p0.length, p1.length, p2.length, p3.length, p4.length, p5.length, pNP.length);
 
-// Validação de consistência
-if (keyNames.length !== vKeyPositions.length) {
-  console.error(`❌ ERRO: Inconsistência entre nomes e posições! Nomes: ${keyNames.length}, Posições: ${vKeyPositions.length}`);
-} else {
-  console.log(`🧩 GK104 Pro RGB plugin carregado: ${keyNames.length} LEDs, ${vKeyPositions.length} posições.`);
-}
+export const vKeyPositions = [...p0, ...p1, ...p2, ...p3, ...p4, ...p5, ...pNP];
+
+console.log("DEBUG: total vKeyPositions =", vKeyPositions.length);
+
+// Exporta nomes e posições
+export function LedNames() { return keyNames; }
+
+console.log(`🧩 GK104 Pro RGB plugin carregado: ${keyNames.length} LEDs, ${vKeyPositions.length} posições.`);
 
 // ======================================================
 //  Fim do plugin
