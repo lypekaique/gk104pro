@@ -1,86 +1,103 @@
 // ============================================================
 // Skyloong GK104 Pro (SEMITE) - SignalRGB Addon
 // Autor: Felipe Kaique (lypekaique)
-// Compatível com SDK v5 / API v4
+// SDK v5 / API v4  |  Fallback de metadados estilo antigo
 // ============================================================
 
 import { HIDDevice } from "signalrgb-sdk";
 
+// --------- Metadados (ajudam a UI a desenhar) ----------
+export function Name() { return "Skyloong GK104 Pro RGB"; }
+export function Publisher() { return "Felipe Kaique"; }
+export function DeviceType() { return "keyboard"; }
+export function Size() { return [22, 7]; }
+export function DefaultPosition() { return [0, 0]; }
+export function DefaultScale() { return 12.0; }
+
+// Layout simples: 104 LEDs em grade (placeholder)
+function gridPositions(cols = 22, rows = 7) {
+  const pos = [];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) pos.push([x, y]);
+  }
+  return pos;
+}
+const LED_COUNT = 104;
+const ledNames = Array.from({ length: LED_COUNT }, (_, i) => `LED ${i+1}`);
+const ledPositions = gridPositions().slice(0, LED_COUNT);
+
+export function LedNames() { return ledNames; }
+export function LedPositions() { return ledPositions; }
+
+// ----------------- Classe principal (SDK v5) -----------------
 export default class SkyloongGK104Pro extends HIDDevice {
-  // IDs vistos nos seus logs
   static vendorId = 0x1EA7;
   static productId = 0x0907;
-  static interface = 2;                 // a interface que aparece no seu HID
+  static interface = 2;                 // visto nos seus logs
   static name = "Skyloong GK104 Pro";
-  static defaultLedCount = 104;
+  static defaultLedCount = LED_COUNT;
 
-  // Utilitário de log
-  log(...msg) { console.log("[GK104Pro]", ...msg); }
+  log(...m) { console.log("[GK104Pro]", ...m); }
+  getLedCount() { return SkyloongGK104Pro.defaultLedCount; }
+  SupportsLighting() { return true; }
 
-  // Chamado quando o add-on é carregado
+  // Opcional: ajuda a UI a escalar/posicionar
+  Size() { return [22, 7]; }
+  DefaultScale() { return 12.0; }
+
   async Initialize() {
-    this.log("Iniciando…");
-
+    this.log("Inicializando…");
     try {
-      // Abra o dispositivo pela combinação vendor/product/interface.
-      // (usagePage fica a cargo do plugin.json — deixamos omisso aqui)
+      // Tenta abrir com interface específica primeiro…
       this.device = await this.OpenDevice({
         vendorId: SkyloongGK104Pro.vendorId,
         productId: SkyloongGK104Pro.productId,
         interface: SkyloongGK104Pro.interface
       });
 
-      if (this.device) {
-        this.log("✅ HID aberto!");
-      } else {
-        this.log("❌ Falha ao abrir o HID (device null).");
+      // …se não rolar, tenta sem interface (queda suave)
+      if (!this.device) {
+        this.log("Tentando abrir sem filtrar interface…");
+        this.device = await this.OpenDevice({
+          vendorId: SkyloongGK104Pro.vendorId,
+          productId: SkyloongGK104Pro.productId
+        });
       }
+
+      if (this.device) this.log("✅ HID aberto!");
+      else this.log("❌ Falha ao abrir o HID.");
     } catch (err) {
       this.log("⚠️ Erro ao inicializar HID:", err);
     }
   }
 
-  // ====== Metadados/Mapa básico ======
-  getLedCount() { return SkyloongGK104Pro.defaultLedCount; }
-  getLedName(i)  { return `LED ${i + 1}`; }
-
-  // Opcional: dá ao SignalRGB um tamanho/escala para desenhar o layout
-  // (pode ajustar depois para o mapa real do teclado)
-  Size() { return [22, 6]; }           // cols, rows (apenas visual)
-  DefaultScale() { return 12.0; }      // zoom para exibição
-  SupportsLighting() { return true; }
-
-  // ====== Envio de quadro (placeholder) ======
-  // Quando tivermos o protocolo real do firmware, trocamos este método.
+  // Envio de quadro (placeholder). Assim que tivermos o
+  // protocolo correto do GK104 Pro, trocamos este método.
   async SendUpdate() {
     if (!this.device || !this.frame) return;
 
-    const count = Math.min(this.getLedCount(), this.frame.length);
-
-    // Buffer exemplo (header 0xAA 0x55 + número de LEDs + RGBs).
-    // Algumas firmwares exigem reportId 0, então usamos 0x00 aqui.
-    const buf = new Uint8Array(3 + count * 3);
+    const n = Math.min(this.getLedCount(), this.frame.length);
+    // Header fictício 0xAA 0x55 + count + RGBs
+    const buf = new Uint8Array(3 + n * 3);
     buf[0] = 0xAA;
     buf[1] = 0x55;
-    buf[2] = count & 0xFF;
+    buf[2] = n & 0xff;
 
-    for (let i = 0; i < count; i++) {
-      const c = this.frame[i]; // { r, g, b }
-      const off = 3 + i * 3;
-      buf[off + 0] = c.r | 0;
-      buf[off + 1] = c.g | 0;
-      buf[off + 2] = c.b | 0;
+    for (let i = 0; i < n; i++) {
+      const c = this.frame[i]; // {r,g,b}
+      const o = 3 + i * 3;
+      buf[o+0] = c.r | 0;
+      buf[o+1] = c.g | 0;
+      buf[o+2] = c.b | 0;
     }
 
     try {
-      // Tente como Feature Report (alguns aparelhos aceitam):
       await this.device.sendFeatureReport(0x00, buf);
     } catch (e1) {
       try {
-        // Alternativa comum: Output Report (interrupt/bulk OUT)
         await this.device.sendOutputReport(0x00, buf);
       } catch (e2) {
-        this.log("Erro ao enviar quadro (hid):", e2);
+        this.log("Erro ao enviar quadro:", e2);
       }
     }
   }
