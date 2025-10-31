@@ -123,3 +123,25 @@ export function LedNames() { return keyNames; }
 //    (reordene itens ou acrescente/remova onde precisar) e mantenha vKeys = index.
 // 3) Se o seu firmware tiver modos proprietários, depois dá para expor via ControlTableParameters.
 // ------------------------------
+
+
+// ======================================================
+// Funções obrigatórias para inicialização HID
+// ======================================================
+
+// Verifica se o dispositivo conectado é realmente o GK104 Pro
+export function validate(device) {
+  // Confere IDs USB
+  if (device.vendorId === 0x1EA7 && device.productId === 0x0907) {
+    return true;
+  }
+  return false;
+}
+
+// Inicializa o HID (chamado quando o SignalRGB conecta)
+export function initialize(device) {
+  // Aqui futuramente podemos adicionar pacotes HID reais,
+  // mas por enquanto basta retornar "true" para o SignalRGB aceitar.
+  device.setFeatureReport = () => {}; // placeholder vazio
+  return true;
+}
