@@ -10,7 +10,7 @@
       "product_id": "0x0907",
       "interface": 1,
       "usage_page": "0xFF00",
-      "module": "GK104Pro.js"
+      "module": "gk104pro.js"
     }
   ]
 }
