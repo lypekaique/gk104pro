@@ -1,8 +1,8 @@
 // ======================================================
-//  Skyloong GK104 Pro RGB — Direct SignalRGB Plugin v3
-//  Layout: 21 x 6 | 106 LEDs
-//  VendorID: 0x1EA7 | ProductID: 0x0907
+//  Skyloong GK104 Pro RGB — Direct SignalRGB Plugin v3.5
 //  Author: Felipe Kaique (lypekaique)
+//  VendorID: 0x1EA7 | ProductID: 0x0907
+//  Layout: 21 x 6 (106 LEDs)
 // ======================================================
 
 export function Name()            { return "Skyloong GK104 Pro RGB"; }
@@ -14,7 +14,9 @@ export function Size()            { return [21, 6]; }
 export function DefaultPosition() { return [0, 0]; }
 export function DefaultScale()    { return 12.0; }
 
-// ========== Controles no painel ==========
+// ======================================================
+//  Painel de Controle
+// ======================================================
 export function ControlTableParameters() {
   return [
     {
@@ -35,13 +37,34 @@ export function ControlTableParameters() {
   ];
 }
 
-// ========== Inicialização ==========
+// ======================================================
+//  Inicialização
+// ======================================================
 export function Initialize() {
   device.SetLedCount(106);
   console.log("[GK104Pro] Inicializado com 106 LEDs (layout 21x6)");
 }
 
-// ========== Render loop ==========
+// ======================================================
+//  HID Layer — Corrige erro validate() not found
+// ======================================================
+export function InitializeHid() {
+  try {
+    device.RegisterHid(0x1EA7, 0x0907);
+    console.log("[GK104Pro] HID interface initialized (VID 1EA7, PID 0907)");
+  } catch (e) {
+    console.log("[GK104Pro] HID init falhou:", e);
+  }
+}
+
+export function Validate() {
+  console.log("[GK104Pro] HID validate() chamado — OK");
+  return true;
+}
+
+// ======================================================
+//  Loop principal de renderização
+// ======================================================
 export function Render() {
   const mode = LightingMode || "Static";
   const base = BaseColor || [255, 255, 255];
@@ -71,10 +94,12 @@ export function Render() {
   }
 }
 
-// ========== Encerramento ==========
+// ======================================================
+//  Encerramento
+// ======================================================
 export function Shutdown() {
   for (let i = 0; i < device.ledCount; i++) {
-    device.SetLedColor(i, [10, 0, 0]); // leve vermelho no desligamento
+    device.SetLedColor(i, [15, 0, 0]); // leve vermelho no desligamento
   }
   console.log("[GK104Pro] Shutdown aplicado.");
 }
