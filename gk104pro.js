@@ -1,5 +1,5 @@
 // ======================================================
-//  Skyloong GK104 Pro RGB — Direct SignalRGB Plugin v3.7
+//  Skyloong GK104 Pro RGB — Direct SignalRGB Plugin v3.8
 //  Author: Felipe Kaique (lypekaique)
 //  VendorID: 0x1EA7 | ProductID: 0x0907
 //  Layout: 21 x 6 (106 LEDs)
@@ -69,7 +69,7 @@ export function Render() {
   const props = device.properties || {};
   const mode = props.LightingMode || "Static";
   const base = props.BaseColor || [255, 255, 255];
-  const t = performance.now() / 1000;
+  const t = Date.now() / 1000; // substitui performance.now()
 
   for (let i = 0; i < device.ledCount; i++) {
     let [r, g, b] = base;
